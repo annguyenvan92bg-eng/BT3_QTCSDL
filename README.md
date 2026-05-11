@@ -246,7 +246,7 @@ Tính tổng nợ (gốc + lãi) của hợp đồng
 8	Gợi ý trả tài sản	 Xuất danh sách tài sản đủ giá trị
 
 ## Event 4: Truy vấn danh sách nợ xấu (Nợ khó đòi)
-<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/43f78f19-6a4a-40dc-a0fb-4628160cc16d" />
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/e31d1aaf-7d40-4bb7-b4c0-a58d499d44e1" />
 *Ảnh này tạo  Procedure để Truy vấn danh sách nợ xấu
 
 1	Lấy danh sách hợp đồng	Chỉ lấy hợp đồng đang vay hoặc đang trả góp
@@ -260,8 +260,63 @@ Tính tổng nợ (gốc + lãi) của hợp đồng
 
 6	Tính số ngày quá hạn	Lấy ngày hôm nay - Deadline1
 
-7	Tính tổng nợ hiện tại	Gọi function fn_CalcMoneyContract (gốc + lãi - đã trả)
+## Event 5: Quản lý thanh lý tài sản 
+### Viết một Trigger tự động chuyển trạng thái hợp đồng sang "Quá hạn (nợ xấu)" sau khi hợp đồng đang ở trạng thái "Đang vay" mà ngày vượt quá Deadline 1.
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/2e539201-b0b5-482f-969d-3ca7140a5908" />
+*Trigger này chạy mỗi khi có INSERT hoặc UPDATE vào bảng HOP_DONG. Nếu hợp đồng đang "Đang vay" mà ngày hiện tại đã qua Deadline1 → tự động chuyển thành "Quá hạn".
 
-8	Tính tổng nợ sau 1 tháng	Gọi function với ngày hôm nay + 30 ngày
+### Viết một Trigger tự động chuyển trạng thái tài sản sang "Sẵn sàng thanh lý" sau khi hợp đồng đang ở trạng thái "Quá hạn (nợ xấu)" mà ngày vượt quá Deadline 2.
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/12595579-c896-4f71-be5d-7862f85eb4e6" />
+*Trigger này chạy khi UPDATE bảng HOP_DONG. Nếu hợp đồng "Quá hạn" và đã qua Deadline2 → chuyển tài sản sang "Sẵn sàng thanh lý".
 
-9	Sắp xếp kết quả	Xếp ngày quá hạn nhiều nhất lên đầu
+### Viết một Trigger tự động chuyển trạng thái tài sản thành “Đã bán thanh lý” sau khi trạng thái của hợp đồng chuyển sang "Đã thanh lý".
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/fd40e7dd-e4ab-45d6-8d80-f56c6a5ad605" />
+*Trigger này chạy khi cột TrangThai của HOP_DONG được UPDATE. Nếu hợp đồng chuyển thành "Đã thanh lý" → tài sản tự động thành "Đã bán thanh lý".
+
+#### BẢNG TRẠNG THÁI TÀI SẢN
+
+| Trạng thái | Ý nghĩa | Khi nào xảy ra |
+|------------|---------|----------------|
+| Đang cầm | Tài sản đang được cầm cố tại cửa hàng | Khi mới tạo hợp đồng, khách chưa trả nợ |
+| Sẵn sàng thanh lý | Tài sản đã quá hạn, chuẩn bị bán ra thị trường | Hợp đồng ở trạng thái "Quá hạn" và ngày hiện tại > Deadline2 |
+| Đã bán thanh lý | Tài sản đã được bán để thu hồi nợ | Hợp đồng chuyển sang trạng thái "Đã thanh lý" |
+| Đã trả | Tài sản đã được trả lại cho khách hàng | Khách hàng trả hết nợ (gốc + lãi) |
+
+## Sự kiện bổ sung:Gia hạn hợp đồng
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/bdfb97f1-0690-48aa-9330-963774eb1cd7" />
+
+#### Công việc sp thực hiện
+
+| STT | Công việc | Giải thích |
+|-----|-----------|------------|
+| 1 | Nhận đầu vào | @ContractID, @NewDeadline1, @NewDeadline2, @NguoiThu |
+| 2 | Kiểm tra hợp đồng | Xem hợp đồng có tồn tại không |
+| 3 | Tính tổng lãi phải trả | Gọi fn_CalcMoneyContract để tính gốc + lãi đến hiện tại |
+| 4 | Tạo mã log mới | Sinh mã MaLog tự động (LOGxxxxxxx) |
+| 5 | Ghi nhận giao dịch | Insert vào LOG_GIAO_DICH: số tiền lãi đã trả, ConNo = 0 |
+| 6 | Cập nhật Deadline mới | Gán Deadline1 và Deadline2 mới cho hợp đồng |
+| 7 | Đưa về trạng thái "Đang vay" | Reset trạng thái hợp đồng về "Đang vay" |
+| 8 | Commit transaction | Lưu tất cả thay đổi |
+| 9 | Trả về kết quả | Thông báo thành công + số tiền đã trả + Deadline mới |
+
+### Chạy thử lại các tính năng của chương trình
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/8f9444e7-2bf2-470a-acc3-9cddb5a76c0e" />
+*Thêm vào dữ liệu mẫu một vài khách hàng thành công
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/9198f530-2353-4815-99e4-b9028dfaa2e7" />
+*Thêm vào dữ liệu mẫu một vài hợp đồng thành công
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/4649f8af-877a-492c-bbc3-fc462bae8bea" />
+*Thêm vào dữ liệu mẫu một vài tài sản thành công
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/77eee9c2-803a-40d4-89b6-f8583000a128" />
+*Thêm vào dữ liệu mẫu một vài log giao dịch thành công
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/1a5fefc1-2405-4fe0-82c4-31ce381e311f" />
+*Kiểm tra fn_CalcMoneyTransaction của event 2 thành công
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/df6fa336-b0d2-4cc1-a868-dee34efd8b30" />
+*Kiểm tra fn_CalcMoneyContract của event 2 thành công
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/ae73be60-1655-4e94-861c-b52a82468e03" />
+*KIỂM TRA XỬ LÝ TRẢ NỢ (EVENT 3) thành công
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/e59b130b-4d59-4c01-abd0-b38f87858674" />
+*KIỂM TRA DANH SÁCH NỢ XẤU (EVENT 4) thành công
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/c0f7fbab-fd6c-44e0-9c6b-b34e506cf8cf" />
+*KIỂM TRA TRIGGER TỰ ĐỘNG (EVENT 5) thành công
+<img width="2560" height="1600" alt="image" src="https://github.com/user-attachments/assets/e54157e2-cbf6-4b67-9f98-c9aa57d88cac" />
+*Kiêm tra tính năng gia hạn hợp đồng thành công
